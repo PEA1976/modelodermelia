@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dermelia — Evaluación de lunares con inteligencia artificial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --tinta:        #142226;
+    --tinta-suave:  #4E6469;
+    --fondo:        #F4F8F9;
+    --superficie:   #FFFFFF;
+    --borde:        #D7E2E4;
+    --teal:         #0F6E76;
+    --teal-oscuro:  #0A4F55;
+    --teal-vidrio:  #E4F1F1;
+    --crema:        #FBF6EE;
+    --piel:         #E7B48C;
+    --piel-oscura:  #C98858;
+    --verde:        #157A46;
+    --verde-fondo:  #EDF8F1;
+    --rojo:         #B3261E;
+    --rojo-fondo:   #FCEEED;
+    --ambar:        #A15C07;
+    --ambar-fondo:  #FBF1DF;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin: 0;
+    background: var(--fondo);
+    color: var(--tinta);
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.5;
+  }
+
+  a{ color: inherit; }
+
+  h1, h2, h3{
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  /* ================= HEADER ================= */
+  .site-header{
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(244,248,249,0.9);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--borde);
+  }
+  .site-header .inner{
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo{
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 20px;
+    color: var(--teal-oscuro);
+    text-decoration: none;
+  }
+  .logo svg{ flex-shrink: 0; }
+
+  nav.principal{
+    display: flex;
+    gap: 30px;
+  }
+  nav.principal a{
+    text-decoration: none;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--tinta-suave);
+    transition: color .15s ease;
+  }
+  nav.principal a:hover{ color: var(--teal-oscuro); }
+
+  .btn-header{
+    background: var(--teal);
+    color: white !important;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 9px;
+    transition: background-color .15s ease;
+  }
+  .btn-header:hover{ background: var(--teal-oscuro); }
+
+  @media (max-width: 760px){
+    nav.principal{ display: none; }
+  }
+
+  /* ================= HERO ================= */
+  .hero{
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 64px 24px 40px;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 40px;
+    align-items: center;
+  }
+  .hero-etiqueta{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--teal-vidrio);
+    color: var(--teal-oscuro);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero-etiqueta svg{ flex-shrink: 0; }
+
+  .hero h1{
+    font-size: 44px;
+    line-height: 1.1;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .hero h1 em{
+    font-style: normal;
+    color: var(--teal);
+  }
+  .hero p.lead{
+    font-size: 17px;
+    color: var(--tinta-suave);
+    max-width: 46ch;
+    margin: 0 0 28px;
+  }
+  .hero-ctas{ display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-primario, .btn-secundario{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 13px 22px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  .btn-primario{ background: var(--teal); color: white; }
+  .btn-primario:hover{ background: var(--teal-oscuro); }
+  .btn-secundario{ background: transparent; color: var(--tinta); border: 1px solid var(--borde); }
+  .btn-secundario:hover{ border-color: var(--teal); }
+
+  .hero-ilustracion{
+    display: flex;
+    justify-content: center;
+  }
+  .hero-ilustracion svg{ width: 100%; max-width: 420px; height: auto; }
+
+  @media (max-width: 860px){
+    .hero{ grid-template-columns: 1fr; padding-top: 40px; }
+    .hero-ilustracion{ order: -1; max-width: 280px; margin: 0 auto; }
+    .hero h1{ font-size: 32px; }
+  }
+
+  /* ================= TIRA DE CONFIANZA ================= */
+  .confianza{
+    border-top: 1px solid var(--borde);
+    border-bottom: 1px solid var(--borde);
+    background: var(--superficie);
+  }
+  .confianza .inner{
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 26px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    justify-content: space-between;
+  }
+  .confianza-item{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--tinta-suave);
+    flex: 1 1 200px;
+  }
+  .confianza-item svg{ color: var(--teal); flex-shrink: 0; }
+  .confianza-item strong{ color: var(--tinta); font-weight: 600; }
+
+  /* ================= SECCIÓN HERRAMIENTA ================= */
+  .seccion-herramienta{
+    padding: 72px 24px;
+  }
+  .encabezado-seccion{
+    max-width: 620px;
+    margin: 0 auto 36px;
+    text-align: center;
+  }
+  .encabezado-seccion .eyebrow{
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+  .encabezado-seccion h2{
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  .encabezado-seccion p{
+    color: var(--tinta-suave);
+    font-size: 15.5px;
+    margin: 0;
+  }
+
+  .tarjeta-herramienta{
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  /* ---- zona de carga ---- */
+  #dropzone{
+    border: 1.5px dashed var(--borde);
+    border-radius: 14px;
+    background: var(--superficie);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+  #dropzone:hover{ border-color: var(--teal); }
+  #dropzone.arrastrando{
+    border-color: var(--teal);
+    background: var(--teal-vidrio);
+  }
+  #dropzone.deshabilitado{
+    cursor: not-allowed;
+    opacity: .55;
+  }
+
+  #icono-carga{ color: var(--teal); margin-bottom: 14px; }
+
+  #texto-dropzone{
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--tinta);
+    margin: 0 0 4px;
+  }
+  #subtexto-dropzone{
+    font-size: 13px;
+    color: var(--tinta-suave);
+    margin: 0;
+  }
+
+  #estado-modelo{
+    font-size: 13px;
+    color: var(--tinta-suave);
+    text-align: center;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+  #estado-modelo.error{ color: var(--rojo); }
+
+  input[type=file]{ display: none; }
+
+  /* ---- preview + acciones ---- */
+  #zona-preview{ display: none; margin-top: 24px; }
+
+  .tarjeta-preview{
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  #img-preview{
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--borde);
+    flex-shrink: 0;
+  }
+
+  .info-preview{ flex: 1; min-width: 0; }
+  #nombre-archivo{
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #peso-archivo{
+    font-size: 13px;
+    color: var(--tinta-suave);
+    margin: 0;
+  }
+
+  .botones-preview{ display: flex; gap: 10px; flex-shrink: 0; }
+
+  button{
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 9px;
+    padding: 10px 16px;
+    border: none;
+    cursor: pointer;
+    transition: background-color .15s ease, opacity .15s ease;
+  }
+  button:disabled{ opacity: .5; cursor: not-allowed; }
+
+  #btn-analizar{ background: var(--teal); color: white; }
+  #btn-analizar:hover:not(:disabled){ background: var(--teal-oscuro); }
+
+  #btn-quitar{
+    background: transparent;
+    color: var(--tinta-suave);
+    border: 1px solid var(--borde);
+  }
+  #btn-quitar:hover{ background: var(--fondo); }
+
+  /* ---- resultado ---- */
+  #resultado{ margin-top: 22px; display: none; }
+
+  .tarjeta-resultado{
+    border-radius: 14px;
+    padding: 26px 24px;
+    text-align: center;
+  }
+  .resultado-maligno  { background: var(--rojo-fondo);  border: 1px solid #F3C6C1; }
+  .resultado-benigno  { background: var(--verde-fondo); border: 1px solid #BFE3CC; }
+  .resultado-incierto { background: var(--ambar-fondo); border: 1px solid #EAD1A0; }
+  .resultado-error    { background: var(--superficie);  border: 1px solid var(--borde); }
+
+  .titulo-resultado{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 21px;
+    margin: 0 0 12px;
+  }
+  .resultado-maligno .titulo-resultado  { color: #7A1912; }
+  .resultado-benigno .titulo-resultado  { color: #0F5230; }
+  .resultado-incierto .titulo-resultado { color: #6E4205; }
+
+  .porcentaje{
+    font-family: 'Fraunces', serif;
+    font-size: 48px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .resultado-maligno .porcentaje  { color: var(--rojo); }
+  .resultado-benigno .porcentaje  { color: var(--verde); }
+  .resultado-incierto .porcentaje { color: var(--ambar); }
+
+  .detalle-resultado{
+    font-size: 14px;
+    color: var(--tinta-suave);
+    margin: 10px 0 0;
+  }
+  .recomendacion{
+    font-size: 14px;
+    font-weight: 600;
+    margin: 14px 0 0;
+  }
+  .resultado-maligno .recomendacion  { color: #7A1912; }
+  .resultado-benigno .recomendacion  { color: #0F5230; }
+  .resultado-incierto .recomendacion { color: #6E4205; }
+
+  /* ---- aviso ---- */
+  .aviso{
+    display: flex;
+    gap: 12px;
+    background: var(--ambar-fondo);
+    border: 1px solid #EAD1A0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-top: 30px;
+    font-size: 13.5px;
+    color: #6E4205;
+  }
+  .aviso svg{ flex-shrink: 0; margin-top: 1px; }
+  .aviso strong{ display: block; margin-bottom: 3px; }
+
+  /* ================= SERVICIOS (decorativo) ================= */
+  .seccion-servicios{
+    background: var(--superficie);
+    border-top: 1px solid var(--borde);
+    border-bottom: 1px solid var(--borde);
+    padding: 72px 24px;
+  }
+  .grilla-servicios{
+    max-width: 1120px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .servicio{
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+    border-radius: 14px;
+    padding: 28px 24px;
+  }
+  .servicio .icono-servicio{
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--teal-vidrio);
+    color: var(--teal-oscuro);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .servicio h3{ font-size: 17px; margin-bottom: 8px; }
+  .servicio p{ font-size: 14px; color: var(--tinta-suave); margin: 0; line-height: 1.55; }
+
+  @media (max-width: 820px){
+    .grilla-servicios{ grid-template-columns: 1fr; }
+  }
+
+  /* ================= FOOTER ================= */
+  footer.site-footer{
+    padding: 48px 24px 32px;
+  }
+  .footer-inner{
+    max-width: 1120px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--borde);
+  }
+  .footer-logo{
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--teal-oscuro);
+    margin-bottom: 8px;
+  }
+  .footer-col p, .footer-col a{
+    font-size: 13.5px;
+    color: var(--tinta-suave);
+    text-decoration: none;
+    display: block;
+    margin: 6px 0;
+  }
+  .footer-col a:hover{ color: var(--teal-oscuro); }
+  .footer-col h4{
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--tinta);
+    margin: 0 0 12px;
+  }
+  .footer-legal{
+    max-width: 1120px;
+    margin: 20px auto 0;
+    font-size: 12.5px;
+    color: var(--tinta-suave);
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="inner">
+    <a href="#" class="logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      Dermelia
+    </a>
+    <nav class="principal">
+      <a href="#inicio">Inicio</a>
+      <a href="#herramienta">Evaluar un lunar</a>
+      <a href="#servicios">Especialidades</a>
+      <a href="#contacto">Contacto</a>
+    </nav>
+    <a href="#herramienta" class="btn-header">Evaluar ahora</a>
+  </div>
+</header>
+
+<section class="hero" id="inicio">
+  <div>
+    <span class="hero-etiqueta">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Apoyo diagnóstico con inteligencia artificial
+    </span>
+    <h1>Detectá a tiempo.<br>Cuidá tu <em>piel</em>.</h1>
+    <p class="lead">En Dermelia acompañamos el cuidado de tu piel combinando experiencia médica con tecnología. Subí una foto de tu lunar y obtené una primera orientación en segundos.</p>
+    <div class="hero-ctas">
+      <a href="#herramienta" class="btn-primario">
+        Evaluar mi lunar ahora
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+      <a href="#servicios" class="btn-secundario">Conocer especialidades</a>
+    </div>
+  </div>
+
+  <div class="hero-ilustracion">
+    <svg viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="210" cy="210" r="200" fill="var(--teal-vidrio)"/>
+      <ellipse cx="210" cy="368" rx="120" ry="14" fill="#DCEAEA"/>
+
+      <!-- brazo con el lunar a examinar -->
+      <g>
+        <ellipse cx="150" cy="300" rx="78" ry="46" fill="var(--piel)"/>
+        <ellipse cx="150" cy="300" rx="78" ry="46" fill="none" stroke="var(--piel-oscura)" stroke-width="2" opacity="0.4"/>
+        <circle cx="168" cy="292" r="9" fill="#6B4226"/>
+        <circle cx="168" cy="292" r="9" fill="none" stroke="#4A2C17" stroke-width="1.4"/>
+      </g>
+
+      <!-- bata / torso doctor -->
+      <path d="M120 385 C120 300 150 250 210 250 C270 250 300 300 300 385 Z" fill="#FFFFFF" stroke="var(--borde)" stroke-width="2"/>
+      <path d="M195 258 L210 285 L225 258" fill="none" stroke="var(--teal)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="180" cy="330" r="3.5" fill="var(--teal)"/>
+      <circle cx="180" cy="352" r="3.5" fill="var(--teal)"/>
+
+      <!-- cuello y cabeza -->
+      <rect x="196" y="215" width="28" height="30" rx="10" fill="#E7B48C"/>
+      <circle cx="210" cy="175" r="52" fill="#EFC49A"/>
+
+      <!-- cabello -->
+      <path d="M160 165 C158 128 182 105 210 105 C240 105 262 128 260 168 C250 150 230 140 210 140 C190 140 168 150 160 165 Z" fill="#5C4433"/>
+
+      <!-- cara -->
+      <circle cx="192" cy="178" r="4.2" fill="#2A2A2A"/>
+      <circle cx="228" cy="178" r="4.2" fill="#2A2A2A"/>
+      <path d="M198 200 Q210 210 222 200" fill="none" stroke="#8A5A38" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- estetoscopio -->
+      <path d="M186 250 Q186 275 210 275 Q234 275 234 250" fill="none" stroke="var(--teal)" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="210" cy="283" r="7" fill="var(--teal-oscuro)"/>
+
+      <!-- brazo sosteniendo la lupa -->
+      <path d="M262 260 C300 250 320 230 322 200" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+      <path d="M262 260 C300 250 320 230 322 200" fill="none" stroke="var(--borde)" stroke-width="26" stroke-linecap="round" opacity="0.35"/>
+
+      <!-- lupa -->
+      <g transform="translate(300,150) rotate(25)">
+        <circle cx="0" cy="0" r="38" fill="rgba(255,255,255,0.35)" stroke="var(--teal-oscuro)" stroke-width="7"/>
+        <line x1="27" y1="27" x2="55" y2="55" stroke="var(--teal-oscuro)" stroke-width="9" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<div class="confianza">
+  <div class="inner">
+    <div class="confianza-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      <span><strong>Equipo certificado</strong> — dermatólogos matriculados</span>
+    </div>
+    <div class="confianza-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span><strong>Resultado en segundos</strong> — sin turnos ni esperas</span>
+    </div>
+    <div class="confianza-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span><strong>Privado y local</strong> — tu foto no sale de tu dispositivo</span>
+    </div>
+  </div>
+</div>
+
+<section class="seccion-herramienta" id="herramienta">
+  <div class="encabezado-seccion">
+    <span class="eyebrow">Evaluación asistida por IA</span>
+    <h2>Coloque aquí la foto a evaluar</h2>
+    <p>Subí una imagen nítida y bien iluminada de la lesión, con la piel centrada en el cuadro.</p>
+  </div>
+
+  <div class="tarjeta-herramienta">
+    <div id="dropzone">
+      <svg id="icono-carga" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <p id="texto-dropzone">Arrastrá una foto acá, o hacé clic para elegirla</p>
+      <p id="subtexto-dropzone">JPG o PNG · buena luz natural, lesión centrada</p>
+      <input type="file" id="input-archivo" accept="image/png, image/jpeg">
+    </div>
+    <div id="estado-modelo">Cargando modelo…</div>
+
+    <div id="zona-preview">
+      <div class="tarjeta-preview">
+        <img id="img-preview" alt="Vista previa de la imagen subida">
+        <div class="info-preview">
+          <p id="nombre-archivo"></p>
+          <p id="peso-archivo"></p>
+        </div>
+        <div class="botones-preview">
+          <button id="btn-quitar" type="button">Quitar</button>
+          <button id="btn-analizar" type="button">Analizar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="resultado"></div>
+
+    <div class="aviso">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <strong>Aviso importante</strong>
+        Esta herramienta es un modelo experimental de apoyo y no constituye un diagnóstico médico. No reemplaza la evaluación de un dermatólogo. Ante cualquier lesión nueva, que cambie de forma, color o tamaño, o que sangre o pique, consultá a un profesional de la salud sin demora.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="seccion-servicios" id="servicios">
+  <div class="encabezado-seccion">
+    <span class="eyebrow">Nuestras especialidades</span>
+    <h2>Cuidado integral de tu piel</h2>
+  </div>
+  <div class="grilla-servicios">
+    <div class="servicio">
+      <div class="icono-servicio">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <h3>Dermatología clínica</h3>
+      <p>Chequeos completos de piel, seguimiento de lunares y diagnóstico temprano de lesiones.</p>
+    </div>
+    <div class="servicio">
+      <div class="icono-servicio">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      </div>
+      <h3>Dermatología estética</h3>
+      <p>Tratamientos para el cuidado y la salud de la piel, acompañados por profesionales.</p>
+    </div>
+    <div class="servicio">
+      <div class="icono-servicio">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+      </div>
+      <h3>Telemedicina</h3>
+      <p>Consultas a distancia con especialistas para resolver dudas sin salir de tu casa.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer" id="contacto">
+  <div class="footer-inner">
+    <div class="footer-col">
+      <div class="footer-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        Dermelia
+      </div>
+      <p>Cuidado de la piel, con tecnología y calidez.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Navegación</h4>
+      <a href="#inicio">Inicio</a>
+      <a href="#herramienta">Evaluar un lunar</a>
+      <a href="#servicios">Especialidades</a>
+    </div>
+    <div class="footer-col">
+      <h4>Contacto</h4>
+      <p>hola@dermelia.example</p>
+      <p>+54 11 0000-0000</p>
+    </div>
+  </div>
+  <p class="footer-legal">© 2026 Dermelia. Sitio de demostración — la evaluación de imágenes es experimental y no reemplaza una consulta médica.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script>
+(() => {
+  const RUTA_MODELO = "./modelo_web/model.json";
+  const TAMANO_IMG = 224;
+  const UMBRAL = 0.5;
+  const MARGEN_INCERTIDUMBRE = 0.15;
+
+  const dropzone       = document.getElementById("dropzone");
+  const inputArchivo    = document.getElementById("input-archivo");
+  const estadoModelo    = document.getElementById("estado-modelo");
+  const zonaPreview     = document.getElementById("zona-preview");
+  const imgPreview      = document.getElementById("img-preview");
+  const nombreArchivo   = document.getElementById("nombre-archivo");
+  const pesoArchivo     = document.getElementById("peso-archivo");
+  const btnAnalizar     = document.getElementById("btn-analizar");
+  const btnQuitar       = document.getElementById("btn-quitar");
+  const resultadoDiv    = document.getElementById("resultado");
+
+  let modelo = null;
+  let imgActual = null;
+
+  (async () => {
+    try {
+      modelo = await tf.loadLayersModel(RUTA_MODELO);
+      tf.tidy(() => modelo.predict(tf.zeros([1, TAMANO_IMG, TAMANO_IMG, 3])));
+      estadoModelo.textContent = "Modelo listo.";
+      estadoModelo.classList.remove("error");
+      dropzone.classList.remove("deshabilitado");
+    } catch (err) {
+      console.error(err);
+      estadoModelo.textContent = "No se pudo cargar el modelo. Verificá que la carpeta 'modelo_web' esté junto a este archivo.";
+      estadoModelo.classList.add("error");
+      dropzone.classList.add("deshabilitado");
+    }
+  })();
+  dropzone.classList.add("deshabilitado");
+
+  dropzone.addEventListener("click", () => {
+    if (!dropzone.classList.contains("deshabilitado")) inputArchivo.click();
+  });
+  inputArchivo.addEventListener("change", (e) => {
+    if (e.target.files[0]) manejarArchivo(e.target.files[0]);
+  });
+
+  ["dragenter", "dragover"].forEach(evento =>
+    dropzone.addEventListener(evento, (e) => {
+      e.preventDefault();
+      if (!dropzone.classList.contains("deshabilitado")) dropzone.classList.add("arrastrando");
+    })
+  );
+  ["dragleave", "drop"].forEach(evento =>
+    dropzone.addEventListener(evento, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("arrastrando");
+    })
+  );
+  dropzone.addEventListener("drop", (e) => {
+    if (dropzone.classList.contains("deshabilitado")) return;
+    const archivo = e.dataTransfer.files[0];
+    if (archivo) manejarArchivo(archivo);
+  });
+
+  function manejarArchivo(archivo) {
+    if (!archivo.type.match(/^image\/(png|jpeg)$/)) {
+      mostrarError("Ese archivo no es una imagen JPG o PNG válida.");
+      return;
+    }
+    resultadoDiv.style.display = "none";
+
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        imgActual = img;
+        imgPreview.src = e.target.result;
+        nombreArchivo.textContent = archivo.name;
+        pesoArchivo.textContent = formatearPeso(archivo.size);
+        zonaPreview.style.display = "block";
+      };
+      img.onerror = () => mostrarError("No pudimos leer esta imagen. Probá con otro archivo.");
+      img.src = e.target.result;
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  function formatearPeso(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    return (bytes / 1024).toFixed(0) + " KB";
+  }
+
+  btnQuitar.addEventListener("click", () => {
+    imgActual = null;
+    inputArchivo.value = "";
+    zonaPreview.style.display = "none";
+    resultadoDiv.style.display = "none";
+  });
+
+  btnAnalizar.addEventListener("click", async () => {
+    if (!imgActual || !modelo) return;
+    btnAnalizar.disabled = true;
+    btnAnalizar.textContent = "Analizando…";
+    try {
+      const prob = await predecirLesion(imgActual);
+      mostrarResultado(prob);
+    } catch (err) {
+      console.error(err);
+      mostrarError("Hubo un problema al analizar la imagen. Probá con otra foto.");
+    } finally {
+      btnAnalizar.disabled = false;
+      btnAnalizar.textContent = "Analizar";
+    }
+  });
+
+  async function predecirLesion(imgElement) {
+    const resultado = tf.tidy(() => {
+      const tensor = tf.browser.fromPixels(imgElement)
+        .resizeBilinear([TAMANO_IMG, TAMANO_IMG])
+        .toFloat()
+        .expandDims(0);
+      return modelo.predict(tensor);
+    });
+    const valor = (await resultado.data())[0];
+    resultado.dispose();
+    return valor;
+  }
+
+  function mostrarResultado(prob) {
+    const pctMaligno = (prob * 100).toFixed(1);
+    const pctBenigno = ((1 - prob) * 100).toFixed(1);
+    const esIncierto = Math.abs(prob - UMBRAL) < MARGEN_INCERTIDUMBRE;
+    const esMaligno  = prob >= UMBRAL;
+
+    let html;
+    if (esIncierto) {
+      html = `
+        <div class="tarjeta-resultado resultado-incierto">
+          <div class="titulo-resultado">Resultado poco claro</div>
+          <div class="porcentaje">${pctMaligno}%</div>
+          <p class="detalle-resultado">de probabilidad estimada de malignidad — el modelo no está seguro en ningún sentido.</p>
+          <p class="recomendacion">Recomendación: consultá con un médico dermatólogo para una evaluación adecuada.</p>
+        </div>`;
+    } else if (esMaligno) {
+      html = `
+        <div class="tarjeta-resultado resultado-maligno">
+          <div class="titulo-resultado">Posiblemente maligno</div>
+          <div class="porcentaje">${pctMaligno}%</div>
+          <p class="detalle-resultado">de probabilidad estimada de que la lesión sea maligna o premaligna.</p>
+          <p class="recomendacion">Recomendación: consultá con tu médico dermatólogo a la brevedad.</p>
+        </div>`;
+    } else {
+      html = `
+        <div class="tarjeta-resultado resultado-benigno">
+          <div class="titulo-resultado">Posiblemente benigno</div>
+          <div class="porcentaje">${pctBenigno}%</div>
+          <p class="detalle-resultado">de probabilidad estimada de que la lesión sea benigna.</p>
+          <p class="recomendacion">De todas formas, si notás cambios en la lesión con el tiempo, consultá a tu médico.</p>
+        </div>`;
+    }
+    resultadoDiv.innerHTML = html;
+    resultadoDiv.style.display = "block";
+    resultadoDiv.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function mostrarError(mensaje) {
+    resultadoDiv.innerHTML = `
+      <div class="tarjeta-resultado resultado-error">
+        <div class="titulo-resultado">No se pudo analizar la imagen</div>
+        <p class="detalle-resultado">${mensaje}</p>
+      </div>`;
+    resultadoDiv.style.display = "block";
+  }
+})();
+</script>
+
+</body>
+</html>
