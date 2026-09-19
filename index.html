@@ -710,7 +710,7 @@
 
   (async () => {
     try {
-      modelo = await tf.loadLayersModel(RUTA_MODELO);
+      modelo = await tf.loadGraphModel(RUTA_MODELO);
       tf.tidy(() => modelo.predict(tf.zeros([1, TAMANO_IMG, TAMANO_IMG, 3])));
       estadoModelo.textContent = "Modelo listo.";
       estadoModelo.classList.remove("error");
