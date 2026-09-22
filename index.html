@@ -485,7 +485,11 @@
     margin: 20px auto 0;
     font-size: 12.5px;
     color: var(--tinta-suave);
-  }
+ @keyframes barra {
+  0%   { margin-left: 0%;   }
+  50%  { margin-left: 60%;  }
+  100% { margin-left: 0%;   }
+} }
 </style>
 </head>
 <body>
@@ -686,12 +690,10 @@
   <p class="footer-legal">© 2026 Dermelia. Sitio de demostración — la evaluación de imágenes es experimental y no reemplaza una consulta médica.</p>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
 <script>
 (() => {
-  const RUTA_MODELO = "./model.json";
-  const TAMANO_IMG = 224;
-  const UMBRAL = 0.5;
+  const API_URL    = "https://dermelia-backend.onrender.com/predict";
+  const UMBRAL     = 0.5;
   const MARGEN_INCERTIDUMBRE = 0.15;
 
   const dropzone       = document.getElementById("dropzone");
@@ -705,25 +707,14 @@
   const btnQuitar       = document.getElementById("btn-quitar");
   const resultadoDiv    = document.getElementById("resultado");
 
-  let modelo = null;
-  let imgActual = null;
+  let archivoActual = null;
 
-  (async () => {
-    try {
-      modelo = await tf.loadGraphModel(RUTA_MODELO);
-      tf.tidy(() => modelo.predict(tf.zeros([1, TAMANO_IMG, TAMANO_IMG, 3])));
-      estadoModelo.textContent = "Modelo listo.";
-      estadoModelo.classList.remove("error");
-      dropzone.classList.remove("deshabilitado");
-    } catch (err) {
-      console.error(err);
-      estadoModelo.textContent = "No se pudo cargar el modelo. Verificá que la carpeta 'modelo_web' esté junto a este archivo.";
-      estadoModelo.classList.add("error");
-      dropzone.classList.add("deshabilitado");
-    }
-  })();
-  dropzone.classList.add("deshabilitado");
+  // ---- Aviso inicial sobre el cold start ----
+  estadoModelo.textContent =
+    "Servidor en la nube: si nadie lo usó en los últimos minutos, la primera consulta puede tardar hasta 1 minuto. Después es instantáneo.";
+  dropzone.classList.remove("deshabilitado");
 
+  // ===== Eventos de la dropzone =====
   dropzone.addEventListener("click", () => {
     if (!dropzone.classList.contains("deshabilitado")) inputArchivo.click();
   });
@@ -749,25 +740,21 @@
     if (archivo) manejarArchivo(archivo);
   });
 
+  // ===== Manejo del archivo =====
   function manejarArchivo(archivo) {
     if (!archivo.type.match(/^image\/(png|jpeg)$/)) {
       mostrarError("Ese archivo no es una imagen JPG o PNG válida.");
       return;
     }
     resultadoDiv.style.display = "none";
+    archivoActual = archivo;
 
     const lector = new FileReader();
     lector.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        imgActual = img;
-        imgPreview.src = e.target.result;
-        nombreArchivo.textContent = archivo.name;
-        pesoArchivo.textContent = formatearPeso(archivo.size);
-        zonaPreview.style.display = "block";
-      };
-      img.onerror = () => mostrarError("No pudimos leer esta imagen. Probá con otro archivo.");
-      img.src = e.target.result;
+      imgPreview.src = e.target.result;
+      nombreArchivo.textContent = archivo.name;
+      pesoArchivo.textContent = formatearPeso(archivo.size);
+      zonaPreview.style.display = "block";
     };
     lector.readAsDataURL(archivo);
   }
@@ -778,44 +765,111 @@
   }
 
   btnQuitar.addEventListener("click", () => {
-    imgActual = null;
+    archivoActual = null;
     inputArchivo.value = "";
     zonaPreview.style.display = "none";
     resultadoDiv.style.display = "none";
+    estadoModelo.textContent =
+      "Servidor en la nube: si nadie lo usó en los últimos minutos, la primera consulta puede tardar hasta 1 minuto. Después es instantáneo.";
+    estadoModelo.classList.remove("error");
   });
 
+  // ===== Botón Analizar =====
   btnAnalizar.addEventListener("click", async () => {
-    if (!imgActual || !modelo) return;
+    if (!archivoActual) return;
     btnAnalizar.disabled = true;
     btnAnalizar.textContent = "Analizando…";
+
+    // Cartel de espera con barra animada
+    mostrarCargando();
+
+    // Arrancamos la animación de "cuánto llevamos esperando"
+    const inicio = Date.now();
+    const intervalo = setInterval(() => {
+      const seg = Math.floor((Date.now() - inicio) / 1000);
+      const textoEspera = document.getElementById("tiempo-espera");
+      if (textoEspera) {
+        textoEspera.textContent = `Esperando respuesta del servidor… (${seg}s)`;
+      }
+    }, 500);
+
     try {
-      const prob = await predecirLesion(imgActual);
-      mostrarResultado(prob);
+      const datos = await llamarAPI(archivoActual);
+      mostrarResultado(datos);
+      estadoModelo.textContent = "Servidor listo. Próximas consultas serán inmediatas.";
+      estadoModelo.classList.remove("error");
     } catch (err) {
       console.error(err);
-      mostrarError("Hubo un problema al analizar la imagen. Probá con otra foto.");
+      mostrarError(
+        err.message ||
+        "Hubo un problema al analizar la imagen. Probá con otra foto o esperá unos segundos."
+      );
     } finally {
+      clearInterval(intervalo);
       btnAnalizar.disabled = false;
       btnAnalizar.textContent = "Analizar";
     }
   });
 
-  async function predecirLesion(imgElement) {
-    const resultado = tf.tidy(() => {
-      const tensor = tf.browser.fromPixels(imgElement)
-        .resizeBilinear([TAMANO_IMG, TAMANO_IMG])
-        .toFloat()
-        .expandDims(0);
-      return modelo.predict(tensor);
-    });
-    const valor = (await resultado.data())[0];
-    resultado.dispose();
-    return valor;
+  // ===== Llamada real a Render =====
+  async function llamarAPI(archivo) {
+    const formData = new FormData();
+    formData.append("imagen", archivo); // ← nombre EXACTO que espera Flask
+
+    // Timeout amplio para el cold start de Render (90 segundos)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+    let resp;
+    try {
+      resp = await fetch(API_URL, {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if (e.name === "AbortError") {
+        throw new Error("El servidor tardó demasiado. Probá de nuevo en unos segundos.");
+      }
+      throw new Error("No se pudo conectar con el servidor. Revisá tu conexión.");
+    }
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      let detalle = "";
+      try {
+        const j = await resp.json();
+        detalle = j.error || "";
+      } catch (_) {}
+      throw new Error(detalle || `El servidor respondió con error ${resp.status}.`);
+    }
+
+    return await resp.json();
   }
 
-  function mostrarResultado(prob) {
-    const pctMaligno = (prob * 100).toFixed(1);
-    const pctBenigno = ((1 - prob) * 100).toFixed(1);
+  // ===== Render de estados =====
+  function mostrarCargando() {
+    resultadoDiv.innerHTML = `
+      <div class="tarjeta-resultado resultado-error" style="text-align:center;">
+        <div class="titulo-resultado">Analizando…</div>
+        <div style="margin: 18px auto 14px; width: 100%; max-width: 320px; height: 8px; background: #E4F1F1; border-radius: 999px; overflow: hidden;">
+          <div style="width: 40%; height: 100%; background: var(--teal); border-radius: 999px; animation: barra 1.4s ease-in-out infinite;"></div>
+        </div>
+        <p class="detalle-resultado" id="tiempo-espera">Esperando respuesta del servidor… (0s)</p>
+        <p class="detalle-resultado" style="font-size:12.5px; opacity:.75; margin-top:8px;">
+          La primera vez puede tardar hasta 1 minuto porque el servidor gratuito se "duerme" cuando nadie lo usa.
+        </p>
+      </div>`;
+    resultadoDiv.style.display = "block";
+    resultadoDiv.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function mostrarResultado(datos) {
+    const prob       = datos.probabilidad_malignidad;
+    const pctMaligno = datos.porcentaje_malignidad.toFixed(1);
+    const pctBenigno = datos.porcentaje_benignidad.toFixed(1);
+
     const esIncierto = Math.abs(prob - UMBRAL) < MARGEN_INCERTIDUMBRE;
     const esMaligno  = prob >= UMBRAL;
 
@@ -857,9 +911,9 @@
         <p class="detalle-resultado">${mensaje}</p>
       </div>`;
     resultadoDiv.style.display = "block";
+    resultadoDiv.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 })();
 </script>
-
 </body>
 </html>
